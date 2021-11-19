@@ -5,6 +5,13 @@
       "type": "timerTrigger",
       "direction": "in",
       "schedule": "37 15 2 * * *"
+    },
+    {
+      "type": "queue",
+      "direction": "out",
+      "name": "Event",
+      "queueName": "events",
+      "connection": "AzureWebJobsStorage"
     }
   ]
 }

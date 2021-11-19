@@ -1,13 +1,18 @@
 # Input bindings are passed in via param block.
 param($Timer)
 
-# Get the current universal time in the default string format
-$currentUTCtime = (Get-Date).ToUniversalTime()
-
-# The 'IsPastDue' porperty is 'true' when the current function invocation is later than scheduled.
-if ($Timer.IsPastDue) {
-    Write-Host "PowerShell timer is running late!"
+if (!$env:KOS_Data) {
+    Write-Error "KOS_Data not configured."
+    exit 1
 }
 
-# Write an information log with the current time.
-Write-Host "PowerShell timer trigger function ran! TIME: $currentUTCtime"
+$Response = Invoke-WebRequest -Uri $env:KOS_Data
+if (!$Response.BaseResponse.IsSuccessStatusCode) {
+    Write-Error "Fetch KOS_Data failed."
+    Write-Error $Response.RawContent
+    exit 2
+}
+
+$Data = $Response.Content | ConvertFrom-Csv
+$EncodedData = $Data | ForEach-Object { $_ | ConvertTo-Json -Compress }
+Push-OutputBinding -Name Event -Value $EncodedData
