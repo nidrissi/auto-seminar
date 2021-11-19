@@ -10,7 +10,7 @@
       "type": "queue",
       "direction": "out",
       "name": "Event",
-      "queueName": "events",
+      "queueName": "events-incoming",
       "connection": "AzureWebJobsStorage"
     }
   ]
