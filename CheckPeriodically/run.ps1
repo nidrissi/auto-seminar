@@ -14,5 +14,5 @@ if (!$Response.BaseResponse.IsSuccessStatusCode) {
 }
 
 $Data = $Response.Content | ConvertFrom-Csv
-$EncodedData = $Data | ForEach-Object { $_ | ConvertTo-Json -Compress }
-Push-OutputBinding -Name Event -Value $EncodedData
+# $EncodedData = $Data | ForEach-Object { $_ | ConvertTo-Json -Compress }
+Push-OutputBinding -Name Event -Value $Data
