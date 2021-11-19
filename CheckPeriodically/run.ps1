@@ -1,4 +1,3 @@
-# Input bindings are passed in via param block.
 param($Timer)
 
 if (!$env:KOS_Data) {
