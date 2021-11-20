@@ -4,8 +4,21 @@
       "name": "QueueItem",
       "type": "queueTrigger",
       "direction": "in",
-      "queueName": "events-incoming",
-      "connection": ""
+      "queueName": "incoming"
+    },
+    {
+      "type": "blob",
+      "direction": "in",
+      "name": "BlobInput",
+      "path": "events/{date}.json",
+      "connection": "AzureWebJobsStorage"
+    },
+    {
+      "type": "blob",
+      "direction": "out",
+      "name": "BlobOutput",
+      "path": "events/{date}.json",
+      "connection": "AzureWebJobsStorage"
     }
   ]
 }
