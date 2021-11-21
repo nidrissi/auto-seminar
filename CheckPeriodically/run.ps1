@@ -16,6 +16,7 @@ if (!$Response.BaseResponse.IsSuccessStatusCode) {
 $Data = $Response.Content | ConvertFrom-Csv
 
 foreach ($entry in $Data) {
+    # Parse date
     if (!($entry.date -match '(\d\d?)/(\d\d?)/(\d\d\d\d)')) {
         Write-Error "Malformed entry:"
         Write-Error $entry
@@ -25,6 +26,11 @@ foreach ($entry in $Data) {
     $month = $matches[2]
     $year = $matches[3]
     $entry.date = '{0:d2}-{1:d2}-{2:d4}' -f $day, $month, $year
+
+    # Parse HTML entities
+    'speaker', 'affiliation', 'title' | ForEach-Object {
+        $entry.$_ = [System.Web.HttpUtility]::HtmlDecode($entry.$_)
+    }
 }
 
 # This will push several items into the queue. Uniquely identified by their date (hopefully!).
