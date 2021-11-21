@@ -50,7 +50,10 @@ $Token = $TokenResponse.InputFields.Where({ $_.id -eq "form__token" }, 'First').
 Write-Debug "Token: $Token"
 
 if ($BlobInput -and $BlobInput.id) {
-    $QueueItem["id"] = $BlobInput.id
+    # The entry already exists: get its ID from the state
+    $Id = $BlobInput["id"]
+    Write-Information "Found existing entry: $Id"
+    $QueueItem["id"] = $Id
 }
 else {
     Write-Host "Creating the event."
@@ -73,8 +76,16 @@ else {
         -Form $FormData `
         -WebSession $Session
 
+    if (!$CreationFormResponse.BaseResponse.IsSuccessStatusCode) {
+        Write-Error "Error creating entry!"
+        Write-Error $CreationFormResponse
+        exit 5
+    }
+
+    Write-Information "Successfully created entry."
+
     $EventId = $CreationFormResponse.BaseResponse.RequestMessage.RequestUri.Segments | Select-Object -Last 1
-    Write-Debug "Event id: $EventId"
+    Write-Information "Event id: $EventId"
     $QueueItem["id"] = $EventId
 }
 
@@ -88,9 +99,14 @@ try {
         if ($AbstractResponse.BaseResponse.IsSuccessStatusCode) {
             $Abstract = $AbstractResponse.Content
         }
+        else {
+            throw;
+        }
     }
 }
-catch {}
+catch {
+    Write-Warning "Error fetching the abstract."
+}
 
 $FormData += @{
     "form[salle]"                  = "1016";
@@ -103,11 +119,15 @@ $FormData += @{
     "form[resume]"                 = $Abstract;
 }
 
-Invoke-WebRequest `
+$UpdateResponse = Invoke-WebRequest `
     -Uri ($BaseUrl + "/gestion/evenement/admin/modifSeance/43/" + $QueueItem["id"]) `
     -Method Post `
     -Form $FormData `
     -WebSession $Session `
-| Out-Null
+
+if (!$UpdateResponse.BaseResponse.IsSuccessStatusCode) {
+    Write-Warning "Error updated entry:"
+    Write-Warning $UpdateResponse
+}
 
 Push-OutputBinding -Name BlobOutput -Value $QueueItem
