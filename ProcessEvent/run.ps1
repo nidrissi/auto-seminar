@@ -10,7 +10,7 @@ if ($BlobInput) {
     }
     if ($differenceCheck -NotContains $false) {
         # The stored state is equal to the new state, so we return.
-        Write-Host "The following item is already dealt with:"
+        Write-Information "The following item is already dealt with:"
         $QueueItem | Format-List
         exit 0
     }
@@ -18,7 +18,7 @@ if ($BlobInput) {
 
 $BaseUrl = "https://www.imj-prg.fr"
 
-Write-Host "Trying to log-in with the provided credentials."
+Write-Information "Trying to log-in with the provided credentials."
 
 $LoginData = @{
     _username = $env:IMJ_login;
@@ -56,7 +56,7 @@ if ($BlobInput -and $BlobInput.id) {
     $QueueItem["id"] = $Id
 }
 else {
-    Write-Host "Creating the event."
+    Write-Information "Creating the event."
 
     $FormData = @{
         "form[titreSeance]"      = "[K-OS] " + $QueueItem["title"];
@@ -89,9 +89,9 @@ else {
     $QueueItem["id"] = $EventId
 }
 
-Write-Host "Updating event."
+Write-Information "Updating event."
 
-Write-Host "Trying to fetch the abstract..."
+Write-Information "Trying to fetch the abstract..."
 $Abstract = ""
 try {
     if ($QueueItem["abstract-file"]) {
