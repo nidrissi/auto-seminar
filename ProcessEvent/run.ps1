@@ -11,7 +11,7 @@ if ($BlobInput) {
     if ($differenceCheck -NotContains $false) {
         # The stored state is equal to the new state, so we return.
         Write-Information "The following item is already dealt with:"
-        $QueueItem | Format-List
+        $QueueItem | ConvertTo-Json -Compress | Write-Information
         exit 0
     }
 }
@@ -52,7 +52,7 @@ Write-Debug "Token: $Token"
 if ($BlobInput -and $BlobInput.id) {
     # The entry already exists: get its ID from the state
     $Id = $BlobInput["id"]
-    Write-Information "Found existing entry: $Id"
+    Write-Information "Found existing entry with id $Id."
     $QueueItem["id"] = $Id
 }
 else {
@@ -70,6 +70,8 @@ else {
         "form[save]"             = "";
     }
 
+    $FormData | ConvertTo-Json -Compress | Write-Debug
+
     $CreationFormResponse = Invoke-WebRequest `
         -Uri ($BaseUrl + "/gestion/evenement/admin/affEvenement/43") `
         -Method Post `
@@ -85,27 +87,23 @@ else {
     Write-Information "Successfully created entry."
 
     $EventId = $CreationFormResponse.BaseResponse.RequestMessage.RequestUri.Segments | Select-Object -Last 1
-    Write-Information "Event id: $EventId"
+    Write-Information "Created event id: $EventId."
     $QueueItem["id"] = $EventId
 }
 
-Write-Information "Updating event."
+Write-Information "Updating event..."
 
 Write-Information "Trying to fetch the abstract..."
 $Abstract = ""
-try {
-    if ($QueueItem["abstract-file"]) {
-        $AbstractResponse = Invoke-WebRequest -Uri ("https://lrobert.perso.math.cnrs.fr/" + $QueueItem["abstract-file"])
-        if ($AbstractResponse.BaseResponse.IsSuccessStatusCode) {
-            $Abstract = $AbstractResponse.Content
-        }
-        else {
-            throw;
-        }
+if ($QueueItem["abstract-file"]) {
+    $AbstractResponse = Invoke-WebRequest -Uri ("https://lrobert.perso.math.cnrs.fr/" + $QueueItem["abstract-file"])
+    if ($AbstractResponse.BaseResponse.IsSuccessStatusCode) {
+        $Abstract = $AbstractResponse.Content
+        Write-Information "Abstract found: $Abstract."
     }
-}
-catch {
-    Write-Warning "Error fetching the abstract."
+    else {
+        Write-Error "Error fetching the abstract: $AbstractResponse"
+    }
 }
 
 $FormData += @{
@@ -126,7 +124,7 @@ $UpdateResponse = Invoke-WebRequest `
     -WebSession $Session `
 
 if (!$UpdateResponse.BaseResponse.IsSuccessStatusCode) {
-    Write-Warning "Error updated entry:"
+    Write-Warning "Error updating entry:"
     Write-Warning $UpdateResponse
 }
 
