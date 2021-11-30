@@ -2,7 +2,6 @@ param($QueueItem, $BlobInput, $TriggerMetadata)
 
 $ErrorActionPreference = 'Stop'
 
-
 if ($BlobInput) {
     $differenceCheck = ('date', 'speaker', 'webpage', 'affiliation', 'title', 'abstract-file') `
     | ForEach-Object {
@@ -49,6 +48,22 @@ if (!$TokenResponse.BaseResponse.IsSuccessStatusCode) {
 $Token = $TokenResponse.InputFields.Where({ $_.id -eq "form__token" }, 'First').value
 Write-Debug "Token: $Token"
 
+
+$FormData = @{
+    "form[titreSeance]"      = "[K-OS] " + $QueueItem["title"];
+    "form[dateSeance]"       = $QueueItem["date"];
+    "form[heureDeb][hour]"   = "14";
+    "form[heureDeb][minute]" = "0";
+    "form[heureFin][hour]"   = "15";
+    "form[heureFin][minute]" = "0";
+    "form[evenement]"        = "43" # séminaire de topologie = 43
+    "form[_token]"           = $Token;
+    "form[save]"             = "";
+}
+
+Write-Debug "Form data:"
+Write-Debug $FormData
+
 if ($BlobInput -and $BlobInput.id) {
     # The entry already exists: get its ID from the state
     $Id = $BlobInput["id"]
@@ -57,18 +72,6 @@ if ($BlobInput -and $BlobInput.id) {
 }
 else {
     Write-Information "Creating the event."
-
-    $FormData = @{
-        "form[titreSeance]"      = "[K-OS] " + $QueueItem["title"];
-        "form[dateSeance]"       = $QueueItem["date"];
-        "form[heureDeb][hour]"   = "14";
-        "form[heureDeb][minute]" = "0";
-        "form[heureFin][hour]"   = "15";
-        "form[heureFin][minute]" = "0";
-        "form[evenement]"        = "43" # séminaire de topologie = 43
-        "form[_token]"           = $Token;
-        "form[save]"             = "";
-    }
 
     $FormData | ConvertTo-Json -Compress | Write-Debug
 
@@ -96,13 +99,16 @@ Write-Information "Updating event..."
 Write-Information "Trying to fetch the abstract..."
 $Abstract = ""
 if ($QueueItem["abstract-file"]) {
-    $AbstractResponse = Invoke-WebRequest -Uri ("https://lrobert.perso.math.cnrs.fr/" + $QueueItem["abstract-file"])
-    if ($AbstractResponse.BaseResponse.IsSuccessStatusCode) {
-        $Abstract = $AbstractResponse.Content
-        Write-Information "Abstract found: $Abstract."
+    try {
+        $AbstractResponse = Invoke-WebRequest -Uri ("https://lrobert.perso.math.cnrs.fr/Kos/" + $QueueItem["abstract-file"])
+        if ($AbstractResponse.BaseResponse.IsSuccessStatusCode) {
+            $Abstract = $AbstractResponse.Content
+            Write-Information "Abstract found:"
+            $Abstract | Write-Information
+        }
     }
-    else {
-        Write-Error "Error fetching the abstract: $AbstractResponse"
+    catch {
+        Write-Error "Error fetching the abstract!"
     }
 }
 
@@ -110,12 +116,17 @@ $FormData += @{
     "form[salle]"                  = "1016";
     "form[adresse]"                = "4"; # Sophie Germain
     "form[diffusion]"              = "https://lrobert.perso.math.cnrs.fr/join-kos.html";
+    "form[vignette]"               = $null;
+    "form[vignettePdf]"            = $null;
 
-    "form[orateurs][1][nom]"       = $QueueItem["speaker"];
-    "form[orateurs][1][pagePerso]" = $QueueItem["webpage"];
-    "form[orateurs][1][employeur]" = $QueueItem["affiliation"];
+    "form[orateurs][0][titre]"     = "";
+    "form[orateurs][0][nom]"       = $QueueItem["speaker"];
+    "form[orateurs][0][pagePerso]" = $QueueItem["webpage"];
+    "form[orateurs][0][employeur]" = $QueueItem["affiliation"];
     "form[resume]"                 = $Abstract;
 }
+
+Write-Information "Posting the update..."
 
 $UpdateResponse = Invoke-WebRequest `
     -Uri ($BaseUrl + "/gestion/evenement/admin/modifSeance/43/" + $QueueItem["id"]) `
@@ -123,9 +134,12 @@ $UpdateResponse = Invoke-WebRequest `
     -Form $FormData `
     -WebSession $Session `
 
-if (!$UpdateResponse.BaseResponse.IsSuccessStatusCode) {
+if ($UpdateResponse.BaseResponse.IsSuccessStatusCode) {
+    Write-Information "Updated entry."
+}
+else {
     Write-Warning "Error updating entry:"
-    Write-Warning $UpdateResponse
+    $UpdateResponse | Write-Warning
 }
 
 Push-OutputBinding -Name BlobOutput -Value $QueueItem
