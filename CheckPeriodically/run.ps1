@@ -35,8 +35,8 @@ foreach ($entry in $Data) {
     Write-Information "Posting event with date $($entry.date)."
 
     # Parse HTML entities
-    'speaker', 'affiliation', 'title' | ForEach-Object {
-        $entry.$_ = [System.Web.HttpUtility]::HtmlDecode($entry.$_)
+    foreach ($key in 'speaker', 'affiliation', 'title') {
+        $entry.$key = [System.Web.HttpUtility]::HtmlDecode($entry.$key)
     }
 }
 
