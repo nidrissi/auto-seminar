@@ -24,8 +24,8 @@ $Data = $Response.Content | ConvertFrom-Csv
 foreach ($entry in $Data) {
     # Parse date
     if (!($entry.date -match '(\d\d?)/(\d\d?)/(\d\d\d\d)')) {
-        Write-Error "Malformed entry:"
-        $entry | ConvertTo-Json -Compress | Write-Error
+        $FormattedEntry = $entry | ConvertTo-Json -Compress
+        Write-Error "Malformed entry:`n$FormattedEntry"
         exit 3
     }
     $day = $matches[1]
@@ -40,5 +40,4 @@ foreach ($entry in $Data) {
     }
 }
 
-# This will push several items into the queue. Uniquely identified by their date (hopefully!).
 Push-OutputBinding -Name Incoming -Value $Data
