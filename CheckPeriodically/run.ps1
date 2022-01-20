@@ -12,14 +12,17 @@ $Response = Invoke-WebRequest -Uri $env:KOS_Data
 $Response | Write-Debug
 
 if (!$Response.BaseResponse.IsSuccessStatusCode) {
-    Write-Error "Fetching KOS_Data failed."
-    Write-Error $Response.RawContent
+    Write-Error "Fetching KOS_Data failed:`n$($Response.RawContent)"
     exit 2
 }
 
 Write-Information "Fetching succeeded with code $($Response.StatusCode)."
 
-$Data = $Response.Content | ConvertFrom-Csv
+$SourceEncoding = [System.Text.Encoding]::GetEncoding('iso-8859-1')
+$DestinationEncoding = [System.Text.Encoding]::GetEncoding('utf-8')
+$EncodedResponse = $DestinationEncoding.GetString($SourceEncoding.GetBytes($Response.Content))
+
+$Data = $EncodedResponse | ConvertFrom-Csv
 
 foreach ($entry in $Data) {
     # Parse date
