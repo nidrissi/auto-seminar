@@ -15,6 +15,8 @@ if ($BlobInput) {
     }
 }
 
+Push-OutputBinding -Name BlobOutput -Value $QueueItem
+
 $BaseUrl = "https://www.imj-prg.fr"
 
 Write-Information "Trying to log-in with the provided credentials."
@@ -75,15 +77,19 @@ else {
 
     $FormData | ConvertTo-Json -Compress | Write-Debug
 
-    $CreationFormResponse = Invoke-WebRequest `
-        -Uri ($BaseUrl + "/gestion/evenement/admin/affEvenement/43") `
-        -Method Post `
-        -Form $FormData `
-        -WebSession $Session
+    try {
+        $CreationFormResponse = Invoke-WebRequest `
+            -Uri ($BaseUrl + "/gestion/evenement/admin/affEvenement/43") `
+            -Method Post `
+            -Form $FormData `
+            -WebSession $Session
 
-    if (!$CreationFormResponse.BaseResponse.IsSuccessStatusCode) {
-        Write-Error "Error creating entry!"
-        Write-Error $CreationFormResponse
+        if (!$CreationFormResponse.BaseResponse.IsSuccessStatusCode) {
+            throw $CreationFormResponse
+        }
+    }
+    catch {
+        Write-Error "Error creating entry: $_"
         exit 5
     }
 
@@ -103,12 +109,11 @@ if ($QueueItem["abstract-file"]) {
         $AbstractResponse = Invoke-WebRequest -Uri ("https://lrobert.perso.math.cnrs.fr/Kos/" + $QueueItem["abstract-file"])
         if ($AbstractResponse.BaseResponse.IsSuccessStatusCode) {
             $Abstract = $AbstractResponse.Content
-            Write-Information "Abstract found:"
-            $Abstract | Write-Information
+            Write-Information "Abstract found:`n$Abstract"
         }
     }
     catch {
-        Write-Error "Error fetching the abstract!"
+        Write-Error "Error fetching the abstract:`n$_"
     }
 }
 
@@ -128,18 +133,20 @@ $FormData += @{
 
 Write-Information "Posting the update..."
 
-$UpdateResponse = Invoke-WebRequest `
-    -Uri ($BaseUrl + "/gestion/evenement/admin/modifSeance/43/" + $QueueItem["id"]) `
-    -Method Post `
-    -Form $FormData `
-    -WebSession $Session `
+try {
+    $UpdateResponse = Invoke-WebRequest `
+        -Uri ($BaseUrl + "/gestion/evenement/admin/modifSeance/43/" + $QueueItem["id"]) `
+        -Method Post `
+        -Form $FormData `
+        -WebSession $Session `
 
-if ($UpdateResponse.BaseResponse.IsSuccessStatusCode) {
-    Write-Information "Updated entry."
+    if ($UpdateResponse.BaseResponse.IsSuccessStatusCode) {
+        Write-Information "Updated entry successfully."
+    }
+    else {
+        throw $UpdateResponse
+    }
 }
-else {
-    Write-Warning "Error updating entry:"
-    $UpdateResponse | Write-Warning
+catch {
+    Write-Error "Error updating entry:`n$_"
 }
-
-Push-OutputBinding -Name BlobOutput -Value $QueueItem
