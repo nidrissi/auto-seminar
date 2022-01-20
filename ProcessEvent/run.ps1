@@ -120,9 +120,9 @@ $FormData += @{
     "form[vignettePdf]"            = $null;
 
     "form[orateurs][0][titre]"     = "";
-    "form[orateurs][0][nom]"       = $QueueItem["speaker"];
-    "form[orateurs][0][pagePerso]" = $QueueItem["webpage"];
-    "form[orateurs][0][employeur]" = $QueueItem["affiliation"];
+    "form[orateurs][0][nom]"       = $QueueItem["speaker"] ?? "TBA";
+    "form[orateurs][0][pagePerso]" = $QueueItem["webpage"] ?? "";
+    "form[orateurs][0][employeur]" = $QueueItem["affiliation"] ?? "";
     "form[resume]"                 = $Abstract;
 }
 
