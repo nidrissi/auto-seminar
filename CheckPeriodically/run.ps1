@@ -7,16 +7,15 @@ if (!$env:KOS_Data) {
 
 Write-Information "Fetching from: <$env:KOS_Data>."
 
-$Response = Invoke-WebRequest -Uri $env:KOS_Data
-
-$Response | Write-Debug
-
-if (!$Response.BaseResponse.IsSuccessStatusCode) {
-    Write-Error "Fetching KOS_Data failed:`n$($Response.RawContent)"
+try {
+    $Response = Invoke-WebRequest -Uri $env:KOS_Data -SkipHttpErrorCheck
+}
+catch {
+    Write-Error "Fetching KOS_Data failed:`n$_"
     exit 2
 }
 
-Write-Information "Fetching succeeded with code $($Response.StatusCode)."
+Write-Information "Fetching KOS_Data succeeded."
 
 $SourceEncoding = [System.Text.Encoding]::GetEncoding('iso-8859-1')
 $DestinationEncoding = [System.Text.Encoding]::GetEncoding('utf-8')
@@ -25,7 +24,7 @@ $EncodedResponse = $DestinationEncoding.GetString($SourceEncoding.GetBytes($Resp
 $Data = $EncodedResponse | ConvertFrom-Csv
 
 foreach ($entry in $Data) {
-    # Parse date
+    # Parse date & bail if any is not correct
     if (!($entry.date -match '(\d\d?)/(\d\d?)/(\d\d\d\d)')) {
         $FormattedEntry = $entry | ConvertTo-Json -Compress
         Write-Error "Malformed entry:`n$FormattedEntry"

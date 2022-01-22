@@ -15,8 +15,6 @@ if ($BlobInput) {
     }
 }
 
-Push-OutputBinding -Name BlobOutput -Value $QueueItem
-
 $BaseUrl = "https://www.imj-prg.fr"
 
 Write-Information "Trying to log-in with the provided credentials."
@@ -25,31 +23,33 @@ $LoginData = @{
     _username = $env:IMJ_login;
     _password = $env:IMJ_password;
 }
-$LoginResponse = Invoke-WebRequest `
-    -Uri ($BaseUrl + "/gestion/login_check") `
-    -Method Post `
-    -Form $LoginData `
-    -SessionVariable Session
-
-if (!$LoginResponse.BaseResponse.IsSuccessStatusCode) {
-    Write-Error "Something went wrong while logging-in:"
-    Write-Error $LoginResponse
+try {
+    Invoke-WebRequest `
+        -Uri ($BaseUrl + "/gestion/login_check") `
+        -Method Post `
+        -Form $LoginData `
+        -SessionVariable Session
+}
+catch {
+    Write-Error "Something went wrong while logging-in:`$_"
     exit 1
 }
 
-$TokenResponse = Invoke-WebRequest `
-    -Uri ($BaseUrl + "/gestion/evenement/admin/affEvenement/43") `
-    -WebSession $Session
+Write-Information "Login successful. Fetching token."
 
-if (!$TokenResponse.BaseResponse.IsSuccessStatusCode) {
-    Write-Error "Something went wrong while getting the token:"
-    Write-Error $LoginResponse
+try {
+    $TokenResponse = Invoke-WebRequest `
+        -Uri ($BaseUrl + "/gestion/evenement/admin/affEvenement/43") `
+        -WebSession $Session
+}
+catch {
+    Write-Error "Something went wrong while getting the token:`n$_"
     exit 2
 }
+Write-Information "Token request successful."
 
 $Token = $TokenResponse.InputFields.Where({ $_.id -eq "form__token" }, 'First').value
-Write-Debug "Token: $Token"
-
+Write-Debug "Token value: $Token"
 
 $FormData = @{
     "form[titreSeance]"      = "[K-OS] " + $QueueItem["title"];
@@ -63,13 +63,12 @@ $FormData = @{
     "form[save]"             = "";
 }
 
-Write-Debug "Form data:"
-Write-Debug $FormData
+Write-Debug "Form data:`n$($FormData | ConvertTo-Json -Compress)"
 
 if ($BlobInput -and $BlobInput.id) {
     # The entry already exists: get its ID from the state
     $Id = $BlobInput["id"]
-    Write-Information "Found existing entry with id $Id."
+    Write-Information "Found existing entry with id: $Id."
     $QueueItem["id"] = $Id
 }
 else {
@@ -82,40 +81,36 @@ else {
             -Uri ($BaseUrl + "/gestion/evenement/admin/affEvenement/43") `
             -Method Post `
             -Form $FormData `
-            -WebSession $Session
-
-        if (!$CreationFormResponse.BaseResponse.IsSuccessStatusCode) {
-            throw $CreationFormResponse
-        }
+            -WebSession $Session `
+            -SkipHttpErrorCheck
     }
     catch {
-        Write-Error "Error creating entry: $_"
+        Write-Error "Error creating entry:`n$_"
         exit 5
     }
 
-    Write-Information "Successfully created entry."
-
     $EventId = $CreationFormResponse.BaseResponse.RequestMessage.RequestUri.Segments | Select-Object -Last 1
-    Write-Information "Created event id: $EventId."
+    Write-Information "Successfully created entry with id: $EventId."
+
     $QueueItem["id"] = $EventId
 }
 
-Write-Information "Updating event..."
+Push-OutputBinding -Name BlobOutput -Value $QueueItem
 
-Write-Information "Trying to fetch the abstract..."
+Write-Information "Trying to fetch the abstract."
 $Abstract = ""
 if ($QueueItem["abstract-file"]) {
     try {
         $AbstractResponse = Invoke-WebRequest -Uri ("https://lrobert.perso.math.cnrs.fr/Kos/" + $QueueItem["abstract-file"])
-        if ($AbstractResponse.BaseResponse.IsSuccessStatusCode) {
-            $Abstract = $AbstractResponse.Content
-            Write-Information "Abstract found:`n$Abstract"
-        }
     }
     catch {
-        Write-Error "Error fetching the abstract:`n$_"
+        Write-Warning "Error fetching the abstract:`n$_"
     }
+
+    $Abstract = $AbstractResponse.Content
+    Write-Information "Abstract found:`n$Abstract"
 }
+
 
 $FormData += @{
     "form[salle]"                  = "1016";
@@ -131,22 +126,16 @@ $FormData += @{
     "form[resume]"                 = $Abstract;
 }
 
-Write-Information "Posting the update..."
+Write-Information "Posting the update."
 
 try {
-    $UpdateResponse = Invoke-WebRequest `
+    Invoke-WebRequest `
         -Uri ($BaseUrl + "/gestion/evenement/admin/modifSeance/43/" + $QueueItem["id"]) `
         -Method Post `
         -Form $FormData `
-        -WebSession $Session `
-
-    if ($UpdateResponse.BaseResponse.IsSuccessStatusCode) {
-        Write-Information "Updated entry successfully."
-    }
-    else {
-        throw $UpdateResponse
-    }
+        -WebSession $Session
 }
 catch {
     Write-Error "Error updating entry:`n$_"
 }
+Write-Information "Updated entry successfully."
