@@ -9,8 +9,7 @@ if ($BlobInput) {
     }
     if ($differenceCheck -NotContains $false) {
         # The stored state is equal to the new state, so we return.
-        Write-Information "The following item is already dealt with:"
-        $QueueItem | ConvertTo-Json -Compress | Write-Information
+        Write-Information "The following item is already dealt with:`n$($QueueItem | ConvertTo-Json -Compress)"
         exit 0
     }
 }
