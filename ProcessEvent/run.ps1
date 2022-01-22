@@ -52,7 +52,7 @@ Write-Debug "Token value: $Token"
 
 $FormData = @{
     "form[titreSeance]"      = "[K-OS] " + $QueueItem["title"];
-    "form[dateSeance]"       = $QueueItem["date"];
+    "form[dateSeance]"       = $QueueItem["date"] -replace '(\d{4})-(\d{2})-(\d{2})', '$3-$2-$1';
     "form[heureDeb][hour]"   = "14";
     "form[heureDeb][minute]" = "0";
     "form[heureFin][hour]"   = "15";

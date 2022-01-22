@@ -33,7 +33,7 @@ foreach ($entry in $Data) {
     $day = $matches[1]
     $month = $matches[2]
     $year = $matches[3]
-    $entry.date = '{0:d2}-{1:d2}-{2:d4}' -f $day, $month, $year
+    $entry.date = '{2:d4}-{1:d2}-{0:d2}' -f $day, $month, $year
     Write-Information "Posting event with date $($entry.date)."
 
     # Parse HTML entities
