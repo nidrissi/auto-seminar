@@ -7,13 +7,7 @@ if (!$env:KOS_Data) {
 
 Write-Information "Fetching from: <$env:KOS_Data>."
 
-try {
-    $Response = Invoke-WebRequest -Uri $env:KOS_Data -SkipHttpErrorCheck
-}
-catch {
-    Write-Error "Fetching KOS_Data failed:`n$_"
-    exit 2
-}
+$Response = Invoke-WebRequest -Uri $env:KOS_Data -SkipHttpErrorCheck
 
 Write-Information "Fetching KOS_Data succeeded."
 
@@ -26,9 +20,7 @@ $Data = $EncodedResponse | ConvertFrom-Csv
 foreach ($entry in $Data) {
     # Parse date & bail if any is not correct
     if (!($entry.date -match '(\d\d?)/(\d\d?)/(\d\d\d\d)')) {
-        $FormattedEntry = $entry | ConvertTo-Json -Compress
-        Write-Error "Malformed entry:`n$FormattedEntry"
-        exit 3
+        throw "Malformed entry:`n$($entry | ConvertTo-Json)"
     }
     $day = $matches[1]
     $month = $matches[2]

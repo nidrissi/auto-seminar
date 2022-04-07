@@ -9,7 +9,7 @@ if ($BlobInput) {
     }
     if ($differenceCheck -NotContains $false) {
         # The stored state is equal to the new state, so we return.
-        Write-Information "The following item is already dealt with:`n$($QueueItem | ConvertTo-Json -Compress)"
+        Write-Information "The following item is already dealt with:`n$($QueueItem | ConvertTo-Json)"
         exit 0
     }
 }
@@ -22,29 +22,19 @@ $LoginData = @{
     _username = $env:IMJ_login;
     _password = $env:IMJ_password;
 }
-try {
-    Invoke-WebRequest `
-        -Uri ($BaseUrl + "/gestion/login_check") `
-        -Method Post `
-        -Form $LoginData `
-        -SessionVariable Session
-}
-catch {
-    Write-Error "Something went wrong while logging-in:`$_"
-    exit 1
-}
+
+Invoke-WebRequest `
+    -Uri ($BaseUrl + "/gestion/login_check") `
+    -Method Post `
+    -Form $LoginData `
+    -SessionVariable Session
 
 Write-Information "Login successful. Fetching token."
 
-try {
-    $TokenResponse = Invoke-WebRequest `
-        -Uri ($BaseUrl + "/gestion/evenement/admin/affEvenement/43") `
-        -WebSession $Session
-}
-catch {
-    Write-Error "Something went wrong while getting the token:`n$_"
-    exit 2
-}
+$TokenResponse = Invoke-WebRequest `
+    -Uri ($BaseUrl + "/gestion/evenement/admin/affEvenement/43") `
+    -WebSession $Session
+
 Write-Information "Token request successful."
 
 $Token = $TokenResponse.InputFields.Where({ $_.id -eq "form__token" }, 'First').value
@@ -61,8 +51,7 @@ $FormData = @{
     "form[_token]"           = $Token;
     "form[save]"             = "";
 }
-
-Write-Debug "Form data:`n$($FormData | ConvertTo-Json -Compress)"
+Write-Debug "Form data:`n$($FormData | ConvertTo-Json)"
 
 if ($BlobInput -and $BlobInput.id) {
     # The entry already exists: get its ID from the state
@@ -73,20 +62,12 @@ if ($BlobInput -and $BlobInput.id) {
 else {
     Write-Information "Creating the event."
 
-    $FormData | ConvertTo-Json -Compress | Write-Debug
-
-    try {
-        $CreationFormResponse = Invoke-WebRequest `
-            -Uri ($BaseUrl + "/gestion/evenement/admin/affEvenement/43") `
-            -Method Post `
-            -Form $FormData `
-            -WebSession $Session `
-            -SkipHttpErrorCheck
-    }
-    catch {
-        Write-Error "Error creating entry:`n$_"
-        exit 5
-    }
+    $CreationFormResponse = Invoke-WebRequest `
+        -Uri ($BaseUrl + "/gestion/evenement/admin/affEvenement/43") `
+        -Method Post `
+        -Form $FormData `
+        -WebSession $Session `
+        -SkipHttpErrorCheck
 
     $EventId = $CreationFormResponse.BaseResponse.RequestMessage.RequestUri.Segments | Select-Object -Last 1
     Write-Information "Successfully created entry with id: $EventId."
@@ -101,15 +82,13 @@ $Abstract = ""
 if ($QueueItem["abstract-file"]) {
     try {
         $AbstractResponse = Invoke-WebRequest -Uri ("https://lrobert.perso.math.cnrs.fr/Kos/" + $QueueItem["abstract-file"])
+        $Abstract = $AbstractResponse.Content
+        Write-Information "Abstract found:`n$Abstract"
     }
     catch {
         Write-Warning "Error fetching the abstract:`n$_"
     }
-
-    $Abstract = $AbstractResponse.Content
-    Write-Information "Abstract found:`n$Abstract"
 }
-
 
 $FormData += @{
     "form[salle]"                  = "1016";
@@ -124,17 +103,14 @@ $FormData += @{
     "form[orateurs][0][employeur]" = $QueueItem["affiliation"] ?? "";
     "form[resume]"                 = $Abstract;
 }
+Write-Debug "New form data:`n$($FormData | ConvertTo-Json)"
 
 Write-Information "Posting the update."
 
-try {
-    Invoke-WebRequest `
-        -Uri ($BaseUrl + "/gestion/evenement/admin/modifSeance/43/" + $QueueItem["id"]) `
-        -Method Post `
-        -Form $FormData `
-        -WebSession $Session
-}
-catch {
-    Write-Error "Error updating entry:`n$_"
-}
+Invoke-WebRequest `
+    -Uri ($BaseUrl + "/gestion/evenement/admin/modifSeance/43/" + $QueueItem["id"]) `
+    -Method Post `
+    -Form $FormData `
+    -WebSession $Session
+
 Write-Information "Updated entry successfully."
