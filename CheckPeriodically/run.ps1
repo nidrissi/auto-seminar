@@ -11,9 +11,8 @@ $Response = Invoke-WebRequest -Uri $env:KOS_Data -SkipHttpErrorCheck
 
 Write-Information "Fetching KOS_Data succeeded."
 
-$SourceEncoding = [System.Text.Encoding]::GetEncoding('iso-8859-1')
-$DestinationEncoding = [System.Text.Encoding]::GetEncoding('utf-8')
-$EncodedResponse = $DestinationEncoding.GetString($SourceEncoding.GetBytes($Response.Content))
+$Bytes = [System.Text.Encoding]::Latin1.GetBytes($Response.Content)
+$EncodedResponse = [System.Text.Encoding]::UTF8.GetString($Bytes)
 
 $Data = $EncodedResponse | ConvertFrom-Csv
 
@@ -22,9 +21,9 @@ foreach ($entry in $Data) {
     if (!($entry.date -match '(\d\d?)/(\d\d?)/(\d\d\d\d)')) {
         throw "Malformed entry:`n$($entry | ConvertTo-Json)"
     }
-    $day = $matches[1]
-    $month = $matches[2]
-    $year = $matches[3]
+    $day = $Matches[1]
+    $month = $Matches[2]
+    $year = $Matches[3]
     $entry.date = '{2:d4}-{1:d2}-{0:d2}' -f $day, $month, $year
     Write-Information "Posting event with date $($entry.date)."
 
